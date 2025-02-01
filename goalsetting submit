@@ -1,0 +1,731 @@
+import time
+import logging
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pathlib import Path
+import selenium.common.exceptions
+from selenium.webdriver.common.keys import Keys
+from datetime import datetime
+import numpy as np
+import math
+from selenium.common.exceptions import TimeoutException
+
+
+# Define paths
+current_directory = Path(__file__).resolve().parent
+chrome_binary_path = current_directory / 'chrome-win64' / 'chrome.exe'
+webdriver_path = current_directory / 'chromedriver-win64' / 'chromedriver.exe'
+excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data01.xlsx"
+new_excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_updated.xlsx"
+
+# Initialize the Chrome driver
+chrome_options = Options()
+chrome_options.add_argument('--no-sandbox')
+chrome_options.add_argument('--disable-dev-shm-usage')
+chrome_options.binary_location = str(chrome_binary_path)
+chrome_options.add_argument("disable-infobars")
+# chrome_options.add_argument("--headless")
+# chrome_options.add_argument("--disable-gpu")
+# driver = webdriver.Chrome(options=chrome_options)
+
+
+service = Service(webdriver_path)
+driver = webdriver.Chrome(service=service, options=chrome_options)
+wait = WebDriverWait(driver, 15)
+
+# Load the data from Excel file
+df = pd.read_excel(excel_file_path)
+kpi_ids_from_excel = df['KPI ID'].tolist()
+
+# Ensure the Status column is available
+if 'Status' not in df.columns:
+    df['Status'] = ''
+
+# Define the URL to test
+url = 'https://caplpms.orgtix.com/'
+#driver.get(url)
+def login(username, password):
+    driver.get(url)
+    time.sleep(3)
+
+    username_field = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, 'username')))
+    password_field = WebDriverWait(driver, 15).until(EC.visibility_of_element_located((By.ID, 'password')))
+    
+    username_field.clear()
+    username = row['username']
+    if isinstance(username, float) and math.isnan(username):
+        username = "default_username"  
+    else:
+        username = str(int(username))
+    password_field.clear()
+    username_field.send_keys(username)
+    password_field.send_keys(password)
+
+    login_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Login']")))
+    login_button.click()
+    print("login successfully")
+    time.sleep(3)
+
+def logout():
+    try:
+        # Locate the logout button using the 'pi pi-power-off' class and click it
+        logout_button = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'pi-power-off')]"))
+        )
+        logout_button.click()
+        print("logout successfully")
+        time.sleep(3)  # Add some wait time to ensure the action is completed
+    except selenium.common.exceptions.TimeoutException:
+        print("unable to logout")       
+        driver.save_screenshot('logout_error.png')
+
+def click_cancel_button():
+    try:
+
+        
+        cancel_button = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(@icon, 'pi pi-times')]"))
+        )
+        cancel_button.click()
+        print("Clicked on cancel successfully")
+        time.sleep(2)
+    except selenium.common.exceptions.TimeoutException:
+        print("unable to click on cancel button")
+        return
+     
+
+def add_kpi(index, row):
+    try:
+        # Navigate to Goal Setting page
+        print("clicking on Goal setting")
+        goal_setting_button = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'layout-menuitem-text') and text()='Goal Setting']"))
+        )
+        goal_setting_button.click()
+        print("Clicked on Goal setting")
+        time.sleep(2)
+        
+        # Wait until 'Add KPI' button is clickable
+
+        add_kpi_button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[text()='Add KPI']")))
+        add_kpi_button.click()
+        print('clicked on add kpi')
+        time.sleep(2)
+        try:
+        # Fill in the fields from the row data (Aspect, Objective, KPI, Weightage, Target, Target Date)
+        # Fill Aspect
+            
+            aspect_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'aspect')))
+            aspect_dropdown.click()
+            print("clicked on Aspect dropdwon")
+            # time.sleep(2)
+            aspect_value = str(row['Aspect'])
+            aspect_option = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{aspect_value}']"))
+            ) 
+            aspect_option.click()
+            print("Aspect selected")
+            time.sleep(2)
+            
+            # Fill Objective
+            objective_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'objective')))
+            objective_dropdown.click()
+            print("clicked on Objective dropdwon")
+            time.sleep(2)
+            objective_value = str(row['Objective'])
+            objective_option = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{objective_value}']"))
+            )
+            objective_option.click()
+            print("object selected")
+            time.sleep(2)
+
+            # Fill KPI
+            try:
+                free_text_input = driver.find_elements(By.XPATH, "//input[@placeholder='Enter Free Text Kpi']")
+                if free_text_input:
+                    free_text_kpi_button = WebDriverWait(driver, 20).until(
+                        EC.element_to_be_clickable((By.XPATH, "//i[@class='pi pi-pencil cursor-pointer mt-2 text-sm']"))
+                    )
+                    free_text_kpi_button.click()
+                    print("Free text KPI button clicked")
+                    kpi_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'KPI')))
+                    kpi_dropdown.click()
+                    print("clicked on KPI dropdwon")
+                    
+                    kpi_value = str(row['KPI'])
+                    # try:
+                    kpi_option = wait.until(EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{kpi_value}']"))
+                    )
+                    kpi_option.click()
+                    
+                else:
+
+                    kpi_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'KPI')))
+                    kpi_dropdown.click()
+                    print("clicked on KPI dropdwon")
+                    
+                    kpi_value = str(row['KPI'])
+                    # try:
+                    kpi_option = wait.until(EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{kpi_value}']"))
+                    )
+                    kpi_option.click()
+                    
+                    print("KPI selected")
+                    time.sleep(1)
+            except selenium.common.exceptions.TimeoutException:
+                # If KPI is not found in the dropdown, enter it as free text
+                print(f"KPI '{kpi_value}' not found in dropdown. Switching to free text entry.")
+                
+                # Click the 'free text KPI' button (pencil icon)
+                free_text_kpi_button = WebDriverWait(driver, 20).until(
+                    EC.element_to_be_clickable((By.XPATH, "//i[@class='pi pi-pencil cursor-pointer mt-2 text-sm']"))
+                )
+                free_text_kpi_button.click()
+                print("Free text KPI button clicked")
+                time.sleep(2)
+
+                # Find the text input field and input the KPI value from the Excel sheet
+                free_text_input = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//input[@type='text']")))
+                free_text_input.clear()
+                free_text_input.send_keys(kpi_value)
+                print(f"Entered KPI '{kpi_value}' as free text.")
+                time.sleep(2)
+                try:
+                    uom_value = str(row['UoM'])  # Get UoM value from the Excel sheet
+                    uom_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//span[@id='uom']")))
+                    uom_dropdown.click()
+                    time.sleep(2)
+                    
+                    # Select the UoM from the dropdown list based on the value in the sheet
+                    uom_option = WebDriverWait(driver, 20).until(
+                        EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{uom_value}']"))
+                    )
+                    uom_option.click()
+                    print(f"UoM '{uom_value}' selected from dropdown.")
+                    time.sleep(2)
+
+                except selenium.common.exceptions.TimeoutException:
+                    print(f"UoM '{uom_value}' not found in dropdown. Ensure it's present in the sheet.")
+
+
+            weightage_field = driver.find_element(By.ID, 'weightage')
+            weightage_field.click()
+            #weightage_field.clear()
+            weightage_field.send_keys(int(row['Weightage']))
+            time.sleep(2)
+            try:
+                target_field = driver.find_element(By.ID, 'target')
+                if target_field.is_enabled():
+                    target_field.clear()
+                    target_field.send_keys(str(row['Target']))
+                    print("Target field filled.")
+                else:
+                    print("Target field is disabled, skipping.")
+                time.sleep(1)
+            except Exception as e:
+                print("Target")
+            time.sleep(1)
+            print("target field filled 01")
+
+            target_date_field = driver.find_element(By.XPATH, "//input[@role='combobox']")
+            print("target date field found")
+            target_date_value = row['Target Date']
+                
+                # Handle the unconverted data error
+            target_date_str = str(target_date_value).split(' ')[0]  # Remove the time part if it exists only date part will show
+            formatted_date = datetime.strptime(target_date_str, '%Y-%m-%d').strftime('%d-%m-%Y')
+            print("convert date format")
+            time.sleep(1)
+            target_date_field.click()
+            print("clicked on target date field")
+            target_date_field.send_keys(Keys.CONTROL + "a")
+            target_date_field.send_keys(Keys.BACK_SPACE)
+            target_date_field.send_keys(formatted_date)
+
+            time.sleep(1)
+
+
+            # Click Save button
+            save_button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Save']")))
+            save_button.click()
+            print("clicked on Save button")
+            time.sleep(1)
+            click_cancel_button()
+            return False
+        except:
+            print("This is admin added kpi ")
+            try:
+        # Wait for the "Cancel" button to be visible and clickable
+                cancel_button = WebDriverWait(driver, 10).until(
+                    EC.element_to_be_clickable((By.XPATH, "/html/body/app-root/div/app-layout/div/div/div/app-goal-setting/div/p-dialog[1]/div/div/div[3]/app-add-kpi/div[2]/div/button[1]"))
+                )
+                cancel_button.click()
+                print("Cancel button clicked successfully.")
+            except Exception as e:
+                print(f"Error while clicking the Cancel button: {e}")
+            
+            df.at[index, 'Status'] = 'Passed'
+            return True
+
+    except Exception as e:
+        df.at[index, 'Status'] = 'Failed'
+        click_cancel_button()
+        print('from except click on cancel')
+        
+
+       
+def click_submit_button():
+    
+    try:
+        submit_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'p-button') and text()='Submit']"))
+        )
+        submit_button.click()
+        print("submit button clicked")
+        time.sleep(2)
+
+    except selenium.common.exceptions.TimeoutException:
+        driver.refresh()
+        WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, "//span[text()='Add KPI']")))
+        print("Unable to click on submit button")
+        time.sleep(3)
+def Yes_button():
+    try:
+        Yes_button = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@class='p-element p-ripple ng-tns-c3522637231-11 p-confirm-dialog-accept p-button p-component ng-star-inserted']"))
+        )
+    # Click on the "No" button
+        Yes_button.click()
+        print("clicked on Yes button")
+        time.sleep(2)
+
+
+    except Exception as e:
+        print(f"An error occurred while clicking on yes button: {e}")
+    
+
+def Kpi_Action(KPI_IDS):
+    try:
+        print("enter in try block")
+        #kpi_ids_from_excel = KPI_IDS.split(",")
+        print(KPI_IDS)
+        KPI_IDS = KPI_IDS.split(",")
+    #     print(f"Error while clicking on button: {e}")  
+        for kpi_id in KPI_IDS:
+             # Convert to float first, then to int to handle decimal strings like '5979.0'
+            kpi_id_text = str(int(float(kpi_id))).strip()
+        # Locate the table body rows
+            print(kpi_id_text)
+            time.sleep(2)
+            # iframe = WebDriverWait(driver, 20).until(
+            #     EC.frame_to_be_available_and_switch_to_it((By.XPATH, "iframe_xpath"))
+            # )
+
+            # table = WebDriverWait(driver, 40).until(
+            #     EC.presence_of_all_elements_located((By.XPATH, "//table[@class='p-datatable-table ng-star-inserted']"))
+            # )
+            print("Table found")
+            # time.sleep(4)
+            # rows = table.find_elements(By.TAG_NAME, "tr")
+            # print(f"Number of rows found: {len(rows)}")
+            rows = WebDriverWait(driver,20).until(
+                EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
+            )
+          #  print(rows)
+
+            # Loop through the rows to find the one with 5952 in the 3rd column
+            for row in rows:
+                third_column = row.find_element(By.XPATH, "./td[3]")
+                third_column_value = third_column.text
+                print(third_column_value)
+
+                if third_column_value == kpi_id_text:
+                    print(f"KPI ID {kpi_id_text} found")
+                    # Once the correct row is found, locate the button in the 9th column and click it
+                    action_button = row.find_element(By.XPATH, "./td[9]/button/span[1]")
+                    action_button.click()
+                    print("Clicked on Action_button")
+                    excel_row = df[df['KPI ID'] == int(kpi_id_text)]  # Assumes 'KPI_ID' is a column in the Excel file
+                    if excel_row.empty or pd.isna(excel_row[f'Action{1}'].values[0]):
+                        print(f"No data found for KPI ID {kpi_id_text} in Excel.")
+                        print("clicking on exit button") 
+                        exit_button_css = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.CSS_SELECTOR, "svg.p-dialog-header-close-icon.p-icon"))
+                        )
+                        exit_button_css.click()
+                        print("Clicked on exit button") 
+                        continue
+                    add_button = WebDriverWait(driver, 10).until(
+                         EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))
+                     )
+                    add_button.click()
+                    time.sleep(3)
+                    print("Clicked on add_button")
+                    
+            # Loop through Action1, Action2, etc.
+                    action_index = 1
+                    while f'Action{action_index}' in df.columns:
+                        action_value = excel_row[f'Action{action_index}'].values[0]
+                        status_value = excel_row[f'Status{action_index}'].values[0]
+                        start_date_value = excel_row[f'StartDate{action_index}'].values[0]
+                        end_date_value = excel_row[f'EndDate{action_index}'].values[0]
+                        comments_value = excel_row[f'Comments{action_index}'].values[0]
+                        
+                        # Fill the Action field
+                        action_input = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.XPATH, "//input[@inputid='action']"))
+                        )
+                        action_input.clear()
+                        action_input.send_keys(action_value)
+                        print(f"Filled action with: {action_value}")
+                        
+                        # Fill the Status dropdown
+                        status_dropdown = WebDriverWait(driver, 20).until(
+                            EC.presence_of_element_located((By.ID, 'status'))  # Locate the Status dropdown
+                        )
+                        status_dropdown.click()
+                        print("Clicked on status dropdown")
+                        
+
+                        # Get the Status value from the Excel sheets
+                        status_value = str(excel_row[f'Status{action_index}'].values[0])  # Fetch the status value from the sheet
+
+                        # Locate and click the appropriate option in the dropdown
+                        status_option = WebDriverWait(driver, 20).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{status_value}']"))
+                        )
+                        status_option.click()
+                        print(f"Status '{status_value}' selected")
+                        
+                        print(f"Type of start_date_value: {type(start_date_value)}")
+                        print(f"start_date_value: {start_date_value}")
+                        # If start_date_value is of type numpy.datetime64, convert it to string
+                        if isinstance(start_date_value, (np.datetime64, datetime)):
+                            start_date_value = str(start_date_value)
+                        # Check the format and handle accordingly
+                        if "T" in start_date_value or "00:00:00" in start_date_value:  # It's in ISO format
+                            start_date_value = start_date_value.split(' ')[0]
+                            start_date_value = datetime.strptime(start_date_value.split('T')[0], "%Y-%m-%d").strftime('%d-%m-%Y')
+                        else:  # It's in 'DD-MM-YYYY' format
+                            try:
+                                start_date_value = datetime.strptime(start_date_value, "%d-%m-%Y").strftime('%d-%m-%Y')
+                            except ValueError:
+                                print("Date format is incorrect or not recognized.")
+
+                        print(f"Type of start_date_value: {type(start_date_value)}")
+                        print(f"Formatted Start Date: {start_date_value}")
+
+                        # Fill the Start Date
+                        start_date_input = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.XPATH, "//input[@id='startDate']"))
+                        )
+                        start_date_input.click()
+                        start_date_input.clear()
+                        start_date_input.send_keys(start_date_value)
+                        print(f"Filled Start Date with: {start_date_value}")
+
+                        # End Date processing if needed
+                        print(f"Type of end_date_value: {type(end_date_value)}")
+                        print(f"end_date_value: {end_date_value}")
+                        # Filling end date value
+                        if isinstance(end_date_value, (np.datetime64, datetime)):
+                            end_date_value = str(end_date_value)
+                        # Check the format and handle accordingly
+                        if "T" in end_date_value or "00:00:00" in end_date_value:  # It's in ISO format
+                            end_date_value = end_date_value.split(' ')[0]
+                            end_date_value = datetime.strptime(end_date_value.split('T')[0], "%Y-%m-%d").strftime('%d-%m-%Y')
+                        else:  # It's in 'DD-MM-YYYY' format
+                            try:
+                                end_date_value = datetime.strptime(end_date_value, "%d-%m-%Y").strftime('%d-%m-%Y')
+                            except ValueError:
+                                print("Date format is incorrect or not recognsized.")
+
+                        print(f"Type of end_date_value: {type(end_date_value)}")
+                        print(f"Formatted end Date: {end_date_value}")
+
+                        # Fill the Start Date
+                        end_date_input = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.XPATH, "//input[@id='endDate']"))
+                        )
+                        end_date_input.click()
+                        end_date_input.clear()
+                        end_date_input.send_keys(end_date_value)
+                        print(f"Filled Start Date with: {end_date_value}")
+                        
+                        # Fill the Comments field
+                        comments_input = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.XPATH, "//textarea[@id='comments']"))
+                        )
+                        comments_input.clear()
+                        comments_input.send_keys(comments_value)
+                        
+                        # Click the Save button
+                        save_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//button[@class='p-element p-ripple p-button-label pr-4 p-button p-component']"))
+                        )
+                        save_button.click()
+                        print(f"Saved Action {action_index}")
+                        
+                        # Click the Add button if there are more actions
+                        action_index += 1
+
+                        time.sleep(3)
+                        if f'Action{action_index}' in df and not df[f'Action{action_index}'].isnull().any():
+                            add_button = WebDriverWait(driver, 30).until(
+                                EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))
+                            )
+                            add_button.click()
+                            time.sleep(3)
+                            print(f"Clicked on Add_button for Action {action_index}")
+                        else:
+                            print("clicking on exit button") 
+                            exit_button_css = WebDriverWait(driver, 10).until(
+                                EC.element_to_be_clickable((By.CSS_SELECTOR, "svg.p-dialog-header-close-icon.p-icon"))
+                            )
+                            exit_button_css.click()
+                            print("Clicked on exit button")            
+    except Exception as e:
+        print(f"Error : {e}")
+
+def Kpi_Comments(KPI_ID, row): 
+  #  for index, row in data.iterrows():
+   #         KPI_ID = row['KPI ID']
+    try:
+        kpi_id_text = str(int(float(KPI_ID))).strip()
+
+        # Locate the table rows
+        rows = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
+        )
+  
+        for row_element in rows:
+            third_column = row_element.find_element(By.XPATH, "./td[3]")
+            third_column_value = third_column.text.strip()
+
+            if third_column_value == kpi_id_text:
+                print(f"KPI ID {kpi_id_text} found for comments")
+
+                # Check if there is a 'Comment1' column in the row
+                if 'Comment1' in row:
+                    # Click on the comment button in the 10th column
+                    #comment_button = WebDriverWait(row_element, 20).until(
+                     #   EC.element_to_be_clickable((By.XPATH, "./td[10]/span[@class='p-button-icon pi pi-comments']"))
+                    #)
+                    comment_button = WebDriverWait(row_element, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "./td[10]//span[@class='p-button-icon pi pi-comments']"))
+                    )
+                    #comment_button = row.find_element(By.XPATH, "./td[10]/span[@class='p-button-icon pi pi-comments']")
+                    comment_button.click()
+                    print("Clicked on comment button")
+
+                    # Loop through Comment1, Comment2, etc., if they exist in the row
+                    comment_index = 1
+                    #while f'Comment{comment_index}' in row and row[f'Comment{comment_index}'] !=  'nan' :
+                    while (
+                        f'Comment{comment_index}' in row and 
+                        row[f'Comment{comment_index}'] is not None and 
+                        not (isinstance(row[f'Comment{comment_index}'], float) and math.isnan(row[f'Comment{comment_index}']))
+                    ):
+                        comment_value = row[f'Comment{comment_index}']
+                        
+                        # Click the "Add" button to add a new comment
+                        add_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))
+                        )
+                        add_button.click()
+                        print(f"Clicked on Add button for Comment{comment_index}")
+
+                        # Fill in the comment field with the comment value from the row
+                        comment_field = WebDriverWait(driver, 10).until(
+                            EC.visibility_of_element_located((By.XPATH, "//textarea[@id='comment']"))
+                        )
+                        comment_field.clear()
+                        comment_field.send_keys(comment_value)
+                        print(f"Entered Comment{comment_index}: {comment_value}")
+
+                        # Click the "Save" button to save the comment
+                        save_button = WebDriverWait(driver, 10).until(
+                            EC.element_to_be_clickable((By.XPATH, "//button[@label='Save']"))
+                        )
+                        save_button.click()
+                        try:
+                            close_button = WebDriverWait(driver, 10).until(
+                                EC.element_to_be_clickable((By.XPATH, "//button[@aria-label='Close']"))
+                            )
+                            close_button.click()
+                        except:
+                            print("unable to click on close button")
+                        time.sleep(5)
+                        print(f"Saved Comment{comment_index}")
+                        
+
+                        # Move to the next comment
+                        comment_index += 1
+
+                    # After adding all comments, close the comment dialog
+                    exit_button = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable((By.CSS_SELECTOR, "svg.p-dialog-header-close-icon.p-icon"))
+                    )
+                    exit_button.click()
+                    print("Closed comment dialog")
+
+                else:
+                    print("No comment columns found in this row for this KPI.")
+                break  # Stop searching for rows once the correct KPI row is found
+
+    except Exception as e:
+        print(f"Error in Kpi_Comments function: {e}")
+
+
+    except Exception as e:
+        print(f"Error in Kpi_Comments function: {e}")
+
+
+def Kpi_Edit(KPI_ID, excel_row):
+
+    try:
+        print("Entering Edit KPI Function")
+        KPI_ID = KPI_ID.split(",")
+        
+        for kpi_id in KPI_ID:
+            kpi_id_text = str(int(float(kpi_id))).strip()  # Convert KPI ID to consistent format
+            print(f"Looking for KPI ID: {kpi_id_text}")
+            
+            # Locate the table rows
+            rows = WebDriverWait(driver, 20).until(
+                EC.presence_of_all_elements_located(
+                    (By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr")
+                )
+            )
+            
+            # Iterate through the rows to find the correct KPI ID
+            for row in rows:
+                kpi_column_value = row.find_element(By.XPATH, "./td[3]").text.strip()  # Assuming KPI ID is in column 3
+                print(f"Found KPI ID in row: {kpi_column_value}")
+                
+                if kpi_column_value == kpi_id_text:
+                    print(f"KPI ID {kpi_id_text} matched. Clicking Edit button.")
+                    
+                    # Locate and click the Edit button in column 12
+                    edit_button = WebDriverWait(row, 10).until(
+                        EC.element_to_be_clickable((By.XPATH, "./td[12]//span[@class='p-button-icon pi pi-pencil']"))
+                    )
+                    edit_button.click()
+                    print("Clicked on Edit button.")
+                    
+                    try:
+                        uom_value = str(excel_row['UoM'])  # Get UoM value from the Excel sheet
+                        uom_dropdown = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//span[@id='uom']")))
+                        uom_dropdown.click()
+                        time.sleep(2)
+                        uom_option = WebDriverWait(driver, 20).until(
+                            EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{uom_value}']"))
+                        )
+                        uom_option.click()
+                        print(f"UoM '{uom_value}' selected from dropdown.")
+                        time.sleep(2)
+
+                    except:
+                        print(f"UoM not found in dropdown. Ensure it's present in the sheet.")
+
+                    try:
+                        weightage_field = driver.find_element(By.ID, 'weightage')
+                        weightage_field.click()
+                        weightage_field.clear()
+                        weightage_field.send_keys(Keys.CONTROL + "a")
+                        weightage_field.send_keys(Keys.BACK_SPACE)
+                        print(excel_row['Weightage'])
+                        weightage_field.send_keys(int(excel_row['Weightage']))
+                    except:
+                        print("Weightage field is enable")
+                    try:
+                        target_field = driver.find_element(By.ID, 'target')
+                        if target_field.is_enabled():
+                            target_field.clear()
+                            target_value = excel_row['Target']
+                            # target_field.send_keys(str(int(float(target_value))))
+                            target_field.send_keys(int(excel_row['Target']))
+                            print("Target field filled.")
+                        else:
+                            print("Target field is disabled, skipping.")
+                        time.sleep(1)
+                    except Exception as e:
+                        print("Target")
+                    time.sleep(1)
+                    print("target field filled 01")
+
+                    target_date_field = driver.find_element(By.XPATH, "//input[@role='combobox']")
+                    print("target date field found")
+                    target_date_value = excel_row['Target Date']
+                        
+                        # Handle the unconverted data error
+                    target_date_str = str(target_date_value).split(' ')[0]  # Remove the time part if it exists only date part will show
+                    formatted_date = datetime.strptime(target_date_str, '%Y-%m-%d').strftime('%d-%m-%Y')
+                    print("convert date format")
+                    time.sleep(1)
+                    target_date_field.click()
+                    print("clicked on target date field")
+                    target_date_field.send_keys(Keys.CONTROL + "a")
+                    target_date_field.send_keys(Keys.BACK_SPACE)
+                    target_date_field.send_keys(formatted_date)
+    
+
+                    # Wait for the Update button to appear and click it
+                    update_button = WebDriverWait(driver, 20).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[contains(., 'Update')]"))
+                    )
+                    update_button.click()
+                    print("Clicked on Update button.")
+                    
+                    time.sleep(2)  # Small delay before proceeding to the next KPI ID
+                    break  # Move to the next KPI ID once Edit and Update are completed
+            
+            else:
+                print(f"KPI ID {kpi_id_text} not found in the table.")
+    
+    except Exception as e:
+        print(f"Error: {e}")
+
+
+print("initialize current username")
+current_username = None
+
+for index, row in df.iterrows():
+    print("fetch the username from excel sheet")
+    username = str(row['username'])
+    print(index,'here')
+    if current_username != username:
+        print(index,'here')
+        if current_username is not None:
+            click_submit_button()
+            print("Clicked on submit button")
+            Yes_button()  # Submit KPIs before switching users
+            print("clicked on Yes ")
+            logout()  # Logout if switching to a new username
+            print("clicked on Logout")
+        login(username, str(row['password']))
+        print("Login the another Username ")
+        current_username = username
+    flag = True
+    flag = add_kpi(index, row)
+    Kpi_Action(str(row['KPI ID'])) 
+    if flag:
+        Kpi_Edit(str(row['KPI ID']), row) 
+    Kpi_Comments(str(row['KPI ID']), row)
+    
+    print("Adding another KPI")# Submit KPIs for the last user
+click_submit_button()
+print("At last if there is no username in the sheet then clicked on cancel")
+
+# Save updated Excel file with Status column
+df.to_excel(new_excel_file_path, index=False)
+print("excel sheet is updated")
+
+# Close the driver
+driver.quit()

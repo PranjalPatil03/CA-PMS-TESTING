@@ -1,0 +1,74 @@
+import CommonFunctions as cf 
+from CommonFunctions import login
+from CommonFunctions import click_submit_button
+import KPIADD as ak 
+from KPIADD import add_kpi
+from KPIEDIT import Kpi_Edit
+from KPIDELETE import Kpi_Delete
+from KPIActionADD import Kpi_Action
+from KPICommentsADD import Kpi_Comments
+from AddComments import add_comments
+from EditKPIAction import EditKPIAction
+from DeleteKPIAction import DeleteKPIAction
+from EditKPIComments import EditKPIComments
+from DeleteKPIComments import DeleteKPIComments
+import time
+import os
+import logging
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pathlib import Path
+import selenium.common.exceptions
+from selenium.webdriver.common.keys import Keys
+from datetime import datetime
+import numpy as np
+import math
+from selenium.common.exceptions import TimeoutException
+from CommonFunctions import logout
+driver = cf.InitializeChromeDriver()
+wait = WebDriverWait(driver, 20)
+def sequences(sheet_name, row, index, status_df):
+    df= status_df[sheet_name]
+
+print("initialise current username")
+current_username = None
+
+for index, row in df.iterrows():
+    print("fetch the username from excel sheet")
+    username = str(row['username'])
+    print(index,'here')
+    if current_username != username:
+        print(index,'here')
+        if current_username is not None:
+            click_submit_button()
+            print("Clicked on submit button")
+            Yes_button()  # Submit KPIs before switching users
+            print("clicked on Yes ")
+            logout()  # Logout if switching to a new username
+            print("clicked on Logout")
+        login(username, str(row['password']))
+        print("Login the another Username ")
+        current_username = username
+    
+    add_kpi(index, row)
+    print("Adding another KPI")
+
+    # Check if KPI ID exists and perform actions accordingly
+    KPI_Action()
+    
+
+# Submit KPIs for the last user
+click_submit_button()
+print("At last if there is no username in the sheet then clicked on cancel")
+
+# Save updated Excel file with Status column
+df.to_excel(new_excel_file_path, index=False)
+print("excel sheet is updated")
+
+# Close the driver
+driver.quit()

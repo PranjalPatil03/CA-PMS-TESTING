@@ -1,0 +1,363 @@
+import CommonFunctions as cf
+import os
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+import time
+import selenium.common.exceptions
+from datetime import datetime
+from selenium.webdriver.common.keys import Keys
+
+def add_kpi(row, index, wait, status_df, df):
+    from CommonFunctions import Click_Goal_Setting
+    excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_1.xlsx"
+    sheet_name = 'AddKPI'
+    # Load the sheet data into a DataFrame
+    import pandas as pd
+    from CommonFunctions import InitializeChromeDriver
+    # df1 = pd.read_excel(excel_file_path, sheet_name=sheet_name) 
+    df1 = df
+    df1['status'] = None
+    # df1 = sheets_dict[sheet_name]
+
+
+    try:
+        # Navigate to Goal Setting page
+        driver = cf.InitializeChromeDriver
+        Click_Goal_Setting(driver, wait)
+        
+        # Wait until 'Add KPI' button is clickable
+
+        add_kpi_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//span[text()='Add KPI']")))
+        add_kpi_button.click()
+        print('clicked on add kpi')
+        time.sleep(2)
+        try:
+        # Fill in the fields from the row data (Aspect, Objective, KPI, Weightage, Target, Target Date)
+        # Fill Aspect
+            kpi_row = df1.iloc[index]
+        # for index,kpi_row in df1.iterrows():
+            aspect_dropdown = wait.until(EC.presence_of_element_located((By.ID, 'aspect')))
+            aspect_dropdown.click()
+            print("clicked on Aspect dropdwon")
+            # time.sleep(2)
+            # df.columns = df.columns.str.strip()
+            aspect_value = str(kpi_row['Aspect'])
+            aspect_option = wait.until(
+                EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{aspect_value}']"))
+            ) 
+            aspect_option.click()
+            print("Aspect selected")
+            time.sleep(2)
+            try:
+                # Fill Objective
+                objective_dropdown = wait.until(EC.presence_of_element_located((By.ID, 'objective')))
+                objective_dropdown.click()
+                print("clicked on Objective dropdwon")
+                time.sleep(1)
+                objective_value = str(kpi_row['Objective'])
+                objective_option = wait.until(
+                    EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{objective_value}']"))
+                )
+                objective_option.click()
+                print("object selected")
+                time.sleep(2)
+            except:
+                print('unable to click on objevctive or objective is empty')
+                objective_dropdown.click()
+
+            # Fill KPI
+            try:
+                # free_text_input = driver.find_elements(By.XPATH, "//input[@placeholder='Enter Free Text Kpi']")
+                # if free_text_input:
+                #     free_text_kpi_button = wait.until(
+                #         EC.element_to_be_clickable((By.XPATH, "//i[@class='pi pi-pencil cursor-pointer mt-2 text-sm']"))
+                #     )
+                #     free_text_kpi_button.click()
+                #     print("Free text KPI button clicked")
+                #     kpi_dropdown = wait.until(EC.presence_of_element_located((By.ID, 'KPI')))
+                #     kpi_dropdown.click()
+                #     print("clicked on KPI dropdwon")
+                    
+                #     kpi_value = str(row['KPI'])
+                #     # try:
+                #     kpi_option = wait.until(EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{kpi_value}']"))
+                #     )
+                #     kpi_option.click()
+                    
+                # else:
+                #     print("test")
+
+                kpi_dropdown = wait.until(EC.presence_of_element_located((By.ID, 'KPI')))
+                kpi_dropdown.click()
+                print("clicked on KPI dropdwon")
+                
+                kpi_value = str(kpi_row['KPI'])
+                # try:
+                kpi_option = wait.until(EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{kpi_value}']"))
+                )
+                kpi_option.click()
+                
+                print("KPI selected")
+                time.sleep(1)
+            except selenium.common.exceptions.TimeoutException:
+
+                # If KPI is not found in the dropdown, enter it as free text
+                print(f"KPI '{kpi_value}' not found in dropdown. Switching to free text entry.")
+                
+                # Click the 'free text KPI' button (pencil icon)
+                # free_text_kpi_button = wait.until(
+                #     EC.element_to_be_clickable((By.XPATH, "//i[@class='pi pi-pencil cursor-pointer mt-2 text-sm']"))
+                # )
+                # free_text_kpi_button.click()
+                # print("Free text KPI button clicked")
+                # time.sleep(2)
+
+                # # Find the text input field and input the KPI value from the Excel sheet
+                # free_text_input = wait.until(EC.presence_of_element_located((By.XPATH, "//input[@type='text']")))
+                # free_text_input.clear()
+                # free_text_input.send_keys(kpi_value)
+                # print(f"Entered KPI '{kpi_value}' as free text.")
+                # time.sleep(2)
+                try:
+                    uom_value = str(kpi_row['UoM'])  # Get UoM value from the Excel sheet
+                    uom_dropdown = wait.until(EC.presence_of_element_located((By.XPATH, "//span[@id='uom']")))
+                    uom_dropdown.click()
+                    time.sleep(2)
+                    
+                    # Select the UoM from the dropdown list based on the value in the sheet
+                    uom_option = wait.until(
+                        EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{uom_value}']"))
+                    )
+                    uom_option.click()
+                    print(f"UoM '{uom_value}' selected from dropdown.")
+                    time.sleep(2)
+
+                except selenium.common.exceptions.TimeoutException:
+                    print(f"UoM '{uom_value}' not found in dropdown. Ensure it's present in the sheet.")
+
+
+            weightage_field = wait.until(
+                EC.visibility_of_element_located((By.ID, "weightage"))
+            )
+            weightage_field.click()
+            #weightage_field.clear()
+            weightage_field.send_keys(int(kpi_row['Weightage']))
+            time.sleep(2)
+            try:
+                target_field = wait.until(
+                    EC.visibility_of_element_located((By.ID, 'target'))
+                )
+                if target_field.is_enabled():
+                    target_field.clear()
+                    target_field.send_keys(str(kpi_row['Target']))
+                    print("Target field filled.")
+                else:
+                    print("Target field is disabled, skipping.")
+                time.sleep(1)
+            except Exception as e:
+                print("Target")
+            time.sleep(1)
+            print("target field filled 01")
+
+            target_date_field = wait.until(
+                EC.visibility_of_element_located((By.XPATH, "//input[@role='combobox']"))
+            )
+            print("target date field found")
+            target_date_value = kpi_row['Target Date']
+                
+                # Handle the unconverted data error
+            target_date_str = str(target_date_value).split(' ')[0]  # Remove the time part if it exists only date part will show
+            formatted_date = datetime.strptime(target_date_str, '%Y-%m-%d').strftime('%d-%m-%Y')
+            print("convert date format")
+            time.sleep(1)
+            target_date_field.click()
+            print("clicked on target date field")
+            target_date_field.send_keys(Keys.CONTROL + "a")
+            target_date_field.send_keys(Keys.BACK_SPACE)
+            target_date_field.send_keys(formatted_date)
+
+            time.sleep(1)
+
+
+            # Click Save button
+            save_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Save']")))
+            save_button.click()
+            print("clicked on Save button")
+            # Capture Toast Message
+            toast_message_element = wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'p-toast-detail')]")))
+            toast_message = toast_message_element.text
+            print(f"Toast Message Retrieved: {toast_message}")
+           
+            # Define the error file path
+            error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+            
+            # Update the DataFrame with the toast message
+            df1.loc[index, 'status'] = toast_message
+            
+            # Prepare the dictionary for storing status DataFrame
+            status_df = {'AddKPI': df1}
+            
+            # Write to the Excel file
+            with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+                for sheet_name, df in status_df.items():
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    
+            print(f"KPI saved successfully")
+
+              
+        except Exception as e:
+            print(" Unable to add KPI ")
+            try:
+                # # Wait for the toast message to appear
+                # toast_message_element = wait.until(
+                #     EC.presence_of_element_located((By.XPATH, "//div[@class='p-toast-detail' and contains(@data-pc-section, 'detail')]"))
+                # )
+                
+                # # Extract the message text
+                # toast_message = toast_message_element.text
+                # print(f"Toast Message Retrieved: {toast_message}")
+                # Define the error file path
+                error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+                
+                # Update the DataFrame with the toast message
+                df1.loc[index, 'status'] = 'Some fields are missing'
+                
+                # Prepare the dictionary for storing status DataFrame
+                status_df = {'AddKPI': df1}
+                
+                # Write to the Excel file
+                with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+                    for sheet_name, df in status_df.items():
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+            
+                print(f"Updated status saved to Excel at: {error_file_path}")
+                
+                try:
+                    cancel_button = wait.until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[contains(@icon, 'pi pi-times')]"))
+                    )
+                    cancel_button.click()
+                    print("Clicked on cancel successfully")
+                    time.sleep(2)
+                except selenium.common.exceptions.TimeoutException:
+                    print("unable to click on cancel button")
+                    return
+            except Exception as e:
+                print(f"exception{e}")       
+
+
+
+
+
+
+    except Exception as e:
+        print("unable to add kpi")
+        try:
+            # Wait for the toast message to appear
+            toast_message_element = wait.until(
+                EC.presence_of_element_located((By.XPATH, "//div[@class='p-toast-detail' and contains(@data-pc-section, 'detail')]"))
+            )
+            
+            # Extract the message text
+            toast_message = toast_message_element.text
+            print(f"Toast Message Retrieved: {toast_message}")
+            # Define the error file path
+            error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+            
+            # Update the DataFrame with the toast message
+            df1.loc[index, 'status'] = toast_message
+            
+            # Prepare the dictionary for storing status DataFrame
+            status_df = {'AddKPI': df1}
+            
+            # Write to the Excel file
+            with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+                for sheet_name, df in status_df.items():
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+            print(f"Updated status saved to Excel at: {error_file_path}")
+            
+            try:
+                cancel_button = wait.until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@icon, 'pi pi-times')]"))
+                )
+                cancel_button.click()
+                print("Clicked on cancel successfully")
+                time.sleep(2)
+            except selenium.common.exceptions.TimeoutException:
+                print("unable to click on cancel button")
+                return
+        except Exception as e:
+            print(f"Error while retrieving toast message: {e}")
+            error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+            
+            # Update the DataFrame with the toast message
+            df1.loc[index, 'status'] = 'toast_message'
+            
+            # Prepare the dictionary for storing status DataFrame
+            status_df = {'AddKPI': df1}
+            
+            # Write to the Excel file
+            with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+                for sheet_name, df in status_df.items():
+                    df.to_excel(writer, sheet_name=sheet_name, index=False)
+        
+            print(f"Updated status saved to Excel at: {error_file_path}")
+            return None
+    
+    #click_cancel_button()
+    print('from except click on cancel')
+    try:
+            cancel_button = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@icon, 'pi pi-times')]"))
+            )
+            cancel_button.click()
+            print("Clicked on cancel successfully")
+            time.sleep(2)
+    except selenium.common.exceptions.TimeoutException:
+            print("unable to click on cancel button")
+    # try:
+    #     # Wait for the toast message to appear
+    #     toast_message_element = wait.until(
+    #         EC.presence_of_element_located((By.XPATH, "//div[@class='p-toast-detail' and contains(@data-pc-section, 'detail')]"))
+    #     )
+        
+    #     # Extract the message text
+    #     toast_message = toast_message_element.text
+    #     print(f"Toast Message Retrieved: {toast_message}")
+    #     # Define the error file path
+    #     error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+        
+    #     # Update the DataFrame with the toast message
+    #     df1.loc[index, 'status'] = toast_message
+        
+    #     # Prepare the dictionary for storing status DataFrame
+    #     status_df = {'AddKPI': df1}
+        
+    #     # Write to the Excel file
+    #     with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+    #         for sheet_name, df in status_df.items():
+    #             df.to_excel(writer, sheet_name=sheet_name, index=False)
+    
+    #     print(f"Updated status saved to Excel at: {error_file_path}")
+        
+        
+    #     return
+    # except Exception as e:
+    #     print(f"Error while retrieving toast message: {e}")
+    #     error_file_path = os.path.join("C:\\Users\\Circular\\Desktop", "Test_Data_Updated.xlsx")
+        
+    #     # Update the DataFrame with the toast message
+    #     df1.loc[index, 'status'] = 'toast_message'
+        
+    #     # Prepare the dictionary for storing status DataFrame
+    #     status_df = {'AddKPI': df1}
+        
+    #     # Write to the Excel file
+    #     with pd.ExcelWriter(error_file_path, engine='xlsxwriter') as writer:
+    #         for sheet_name, df in status_df.items():
+    #             df.to_excel(writer, sheet_name=sheet_name, index=False)
+    
+    #     print(f"Updated status saved to Excel at: {error_file_path}")
+    #     return None
+    

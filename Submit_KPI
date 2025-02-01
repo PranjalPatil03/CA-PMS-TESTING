@@ -1,0 +1,142 @@
+import time
+import logging
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pathlib import Path
+import selenium.common.exceptions
+
+# Initialize logging
+
+# Define paths
+current_directory = Path(__file__).resolve().parent
+chrome_binary_path = current_directory / 'chrome-win64' / 'chrome.exe'
+webdriver_path = current_directory / 'chromedriver-win64' / 'chromedriver.exe'
+excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data.xlsx"
+new_excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_updated.xlsx"
+
+# Initialize the Chrome driver
+chrome_options = Options()
+chrome_options.add_argument('--no-sandbox')  
+chrome_options.add_argument('--disable-dev-shm-usage')
+chrome_options.binary_location = str(chrome_binary_path)
+
+service = Service(webdriver_path)
+driver = webdriver.Chrome(service=service, options=chrome_options)
+
+# Load the data from Excel file
+df = pd.read_excel(excel_file_path)
+
+# Ensure the Status column is available
+if 'Status' not in df.columns:
+    df['Status'] = ''
+
+# Define the URL to test
+url = 'https://pms-ui-dev-centralindia.azurewebsites.net/#/login?returnUrl=%2Fhome'
+
+for index, row in df.iterrows():
+    try:
+        
+        driver.get(url)
+        time.sleep(5)
+
+       
+
+        username_field = WebDriverWait(driver, 15).until(
+            EC.visibility_of_element_located((By.ID, 'username'))
+        )
+        password_field = WebDriverWait(driver, 15).until(
+            EC.visibility_of_element_located((By.ID, 'password'))
+        )
+        
+        username = row['username']
+        if isinstance(username, float):
+            username = str(int(username))
+        password = row['password']
+        username_field.send_keys(username)
+        time.sleep(2)
+        password_field.send_keys(password)
+        time.sleep(2)
+
+        login_button = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[text()='Login']"))
+        )
+        login_button.click()
+        
+        time.sleep(5)  # Wait for login
+        print("hello")
+        # Click on the "Goal Setting" button
+        
+        goal_setting_button = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'layout-menuitem-text') and text()='Goal Setting']"))
+        )
+        goal_setting_button.click()
+        time.sleep(3)  # Wait for the Goal Setting page to load
+        print("Hello")
+        # Ensure the Goal Setting page is loaded
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, "//td[contains(@class, 'text-green-500')]"))
+        )
+        print("Hello1")
+        # Get the total weightage value
+        
+        # total_weightage_value = WebDriverWait(driver, 20).until(
+        #     EC.visibility_of_element_located((By.XPATH,  "//tfoot/tr/td[2]"))
+        # ).text  # Get the text value from the <td> element
+        # print("Hello2")
+    
+        total_weightage_value = driver.find_element(By.XPATH, "//td[contains(text(),'Total Weightage')]/following-sibling::td[contains(@class, 'text-green-500')]")
+
+        
+
+        # Check if total weightage equals 100
+        if total_weightage_value == "100":
+            
+
+            # Click on Submit button
+            submit_button = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[text()='Submit']"))
+            )
+            submit_button.click()
+
+            # Click on Yes to confirm submission
+            yes_button = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'p-confirm-dialog-accept') and span[text()='Yes']]"))
+            )
+
+            yes_button.click()
+            
+
+            # Check for submission success
+            success_message = WebDriverWait(driver, 20).until(
+                EC.visibility_of_element_located((By.XPATH, "//span[contains(text(), 'KPI submitted successfully')]"))
+            )
+            if success_message:
+                
+                df.at[index, 'Status'] = 'KPI Submitted Successfully'
+            else:
+                
+                df.at[index, 'Status'] = 'Failed to Submit KPI'
+        else:
+            
+            logout_button = WebDriverWait(driver, 20).until(
+                EC.element_to_be_clickable((By.XPATH, "//i[contains(@class, 'pi pi-power-off')]"))
+            )
+            logout_button.click()
+           
+            df.at[index, 'Status'] = 'Logged Out'
+
+    except Exception as e:
+       
+        df.at[index, 'Status'] = 'Failed'
+    
+# Save updated Excel file with Status column
+df.to_excel(new_excel_file_path, index=False)
+
+
+# Close the driver
+driver.quit()

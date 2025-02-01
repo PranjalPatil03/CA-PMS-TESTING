@@ -1,0 +1,196 @@
+import time
+from datetime import datetime
+import numpy as np
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+# Function to perform KPI actions
+def Kpi_Action(kpi_id):
+    try:
+        print(f"Processing KPI Action for KPI ID: {kpi_id}")
+        # Convert KPI ID to required format (integer string without decimal)
+        kpi_id_text = str(int(float(kpi_id))).strip()
+        
+        # Locate table rows
+        rows = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
+        )
+
+        # Loop through rows to find the KPI ID in the third column
+        for row in rows:
+            third_column_value = row.find_element(By.XPATH, "./td[3]").text
+            if third_column_value == kpi_id_text:
+                print(f"KPI ID {kpi_id_text} found, performing action")
+                
+                # Click the action button in the ninth column
+                action_button = row.find_element(By.XPATH, "./td[9]/button/span[1]")
+                action_button.click()
+                
+                # Process fields from the Excel sheet
+                process_fields_from_excel(row, kpi_id_text)
+
+                break
+        else:
+            print(f"KPI ID {kpi_id_text} not found in the table.")
+
+    except Exception as e:
+        print(f"Error in Kpi_Action: {e}")
+
+
+def process_fields_from_excel(row, kpi_id_text):
+    # Retrieve values from the current Excel row
+    excel_row = df[df['KPI ID'] == int(kpi_id_text)]
+    if excel_row.empty:
+        print(f"No data found for KPI ID {kpi_id_text} in Excel.")
+        return
+
+    # Process each Action and corresponding details
+    action_index = 1
+    while f'Action{action_index}' in df.columns:
+        action_value = excel_row[f'Action{action_index}'].values[0]
+        status_value = excel_row[f'Status{action_index}'].values[0]
+        start_date_value = format_date(excel_row[f'StartDate{action_index}'].values[0])
+        end_date_value = format_date(excel_row[f'EndDate{action_index}'].values[0])
+        comments_value = excel_row[f'Comments{action_index}'].values[0]
+
+        fill_fields(action_value, status_value, start_date_value, end_date_value, comments_value)
+        
+        # Add new action if another one exists
+        action_index += 1
+        if f'Action{action_index}' in df.columns:
+            add_button = WebDriverWait(driver, 10).until(
+                EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))
+            )
+            add_button.click()
+            time.sleep(3)
+        else:
+            exit_modal()
+
+
+def fill_fields(action_value, status_value, start_date_value, end_date_value, comments_value):
+    try:
+        # Fill in the action, status, start date, end date, and comments fields
+        action_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//input[@inputid='action']")))
+        action_input.clear()
+        action_input.send_keys(action_value)
+
+        # Select status from dropdown
+        status_dropdown = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'status')))
+        status_dropdown.click()
+        status_option = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, f"//ul[@role='listbox']//li[@role='option']//span[text()='{status_value}']"))
+        )
+        status_option.click()
+
+        # Input start date and end date
+        start_date_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//input[@id='startDate']")))
+        start_date_input.clear()
+        start_date_input.send_keys(start_date_value)
+
+        end_date_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//input[@id='endDate']")))
+        end_date_input.clear()
+        end_date_input.send_keys(end_date_value)
+
+        # Input comments
+        comments_input = WebDriverWait(driver, 10).until(EC.visibility_of_element_located((By.XPATH, "//textarea[@id='comments']")))
+        comments_input.clear()
+        comments_input.send_keys(comments_value)
+
+        # Click save
+        save_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.XPATH, "//button[@class='p-element p-ripple p-button-label pr-4 p-button p-component']")))
+        save_button.click()
+        print("Action saved successfully")
+
+    except Exception as e:
+        print(f"Error in fill_fields: {e}")
+
+
+# Function to perform comments action
+def Kpi_Comments(kpi_id, excel_row):
+    try:
+        print(f"Processing Comments for KPI ID: {kpi_id}")
+
+        # Locate table rows
+        rows = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
+        )
+
+        for row in rows:
+            third_column_value = row.find_element(By.XPATH, "./td[3]").text
+            if third_column_value == kpi_id:
+                print(f"KPI ID {kpi_id} found, processing comments")
+
+                # Click comments button in the 10th column
+                comment_button = row.find_element(By.XPATH, "./td[10]/button/span[@class='p-button-icon pi pi-comments']")
+                comment_button.click()
+
+                # Process each Comment field from the Excel sheet
+                comment_index = 1
+                while f'Comment{comment_index}' in df.columns:
+                    comment_value = excel_row[f'Comment{comment_index}'].values[0]
+                    add_and_save_comment(comment_value)
+                    comment_index += 1
+
+                exit_modal()
+                break
+        else:
+            print(f"KPI ID {kpi_id} not found in the table.")
+
+    except Exception as e:
+        print(f"Error in Kpi_Comments: {e}")
+
+
+def add_and_save_comment(comment_value):
+    try:
+        # Click Add button to add a comment
+        add_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))
+        )
+        add_button.click()
+        time.sleep(3)
+
+        # Input the comment
+        comment_input = WebDriverWait(driver, 10).until(
+            EC.visibility_of_element_located((By.XPATH, "//textarea[@id='comment']"))
+        )
+        comment_input.clear()
+        comment_input.send_keys(comment_value)
+
+        # Click Save button
+        save_button = WebDriverWait(driver, 10).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[@class='p-element p-button p-component']/span[text()='Save']"))
+        )
+        save_button.click()
+        print(f"Comment '{comment_value}' saved successfully")
+
+    except Exception as e:
+        print(f"Error in add_and_save_comment: {e}")
+
+
+def format_date(date_value):
+    # Helper function to format dates
+    if isinstance(date_value, (np.datetime64, datetime)):
+        date_value = str(date_value)
+    if "T" in date_value or "00:00:00" in date_value:
+        return datetime.strptime(date_value.split('T')[0], "%Y-%m-%d").strftime('%d-%m-%Y')
+    try:
+        return datetime.strptime(date_value, "%d-%m-%Y").strftime('%d-%m-%Y')
+    except ValueError:
+        print("Date format is incorrect or not recognized.")
+        return date_value
+
+
+def exit_modal():
+    # Click exit button to close modal/dialog
+    exit_button = WebDriverWait(driver, 10).until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "svg.p-dialog-header-close-icon.p-icon"))
+    )
+    exit_button.click()
+    print("Closed the modal dialog")
+
+# Main loop to call both functions
+for index, row in df.iterrows():
+    kpi_id = str(row['KPI ID'])
+    Kpi_Action(kpi_id)
+    Kpi_Comments(kpi_id, row)

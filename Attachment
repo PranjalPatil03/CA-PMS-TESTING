@@ -1,0 +1,160 @@
+# Import required libraries
+import time
+import logging
+import pandas as pd
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from pathlib import Path
+
+# Initialize logging
+logging.basicConfig(level=logging.DEBUG)
+
+# Define paths
+current_directory = Path(__file__).resolve().parent
+chrome_binary_path = current_directory / 'chrome-win64' / 'chrome.exe'
+webdriver_path = current_directory / 'chromedriver-win64' / 'chromedriver.exe'
+excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data.xlsx"
+new_excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_updated.xlsx"
+
+# Initialize the Chrome driver
+chrome_options = Options()
+chrome_options.add_argument('--no-sandbox')  
+chrome_options.add_argument('--disable-dev-shm-usage')
+chrome_options.binary_location = str(chrome_binary_path)
+
+service = Service(webdriver_path)
+driver = webdriver.Chrome(service=service, options=chrome_options)
+
+# Load the data from Excel file
+df = pd.read_excel(excel_file_path)
+
+# Ensure the Status column is available
+if 'Status' not in df.columns:
+    df['Status'] = ''
+
+# Get the KPI IDs from the Excel file
+kpi_ids = df['KPI ID'].astype(str).str.strip().tolist()  # Strip leading/trailing spaces
+
+# Define the URL to test
+url = 'https://pms-ui-dev-centralindia.azurewebsites.net/#/login?returnUrl=%2Fhome'
+
+# Start the automation process for each row in the Excel file
+for index, row in df.iterrows():
+    try:
+        logging.info(f"Starting automation for {row['username']}")
+        driver.get(url)
+        time.sleep(5)
+
+        # Login steps
+        logging.info("Attempting to log in...")
+        username_field = WebDriverWait(driver, 15).until(
+            EC.visibility_of_element_located((By.ID, 'username'))
+        )
+        password_field = WebDriverWait(driver, 15).until(
+            EC.visibility_of_element_located((By.ID, 'password'))
+        )
+        
+        username = str(row['username'])
+        password = str(row['password']) 
+        username_field.send_keys(username)
+        time.sleep(2)
+        password_field.send_keys(password)
+        time.sleep(2)
+
+        login_button = WebDriverWait(driver, 15).until(
+            EC.element_to_be_clickable((By.XPATH, "//button[text()='Login']"))
+        )
+        login_button.click()
+        logging.info(f"Login button clicked for {username}")
+        time.sleep(5)  # Wait for login
+
+        # Click on the "Goal Setting" button
+        logging.info("Clicking on 'Goal Setting' button...")
+        goal_setting_button = WebDriverWait(driver, 20).until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'layout-menuitem-text') and text()='Goal Setting']"))
+        )
+        goal_setting_button.click()
+        time.sleep(5)  # Wait for the Goal Setting page to load completely
+
+        # Log table contents to verify that KPI IDs are present
+        logging.info("Fetching all KPI IDs from the table for validation...")
+        all_kpi_elements = driver.find_elements(By.XPATH, "//td[contains(@class, 'kpi-id-class')]")  # Adjust this if the class or structure differs
+
+        # Log all fetched KPI IDs for debugging
+        fetched_kpi_ids = [element.text.strip() for element in all_kpi_elements]
+        logging.info(f"KPI IDs found on page: {fetched_kpi_ids}")
+
+        # Iterate through the KPI IDs from the Excel file and click the Edit button
+        for kpi_id in kpi_ids:
+            kpi_id = kpi_id.strip()  # Strip spaces just in case
+            try:
+                if kpi_id in fetched_kpi_ids:
+                    logging.info(f"Trying to find and click edit button for KPI ID: {kpi_id}")
+                    edit_button = WebDriverWait(driver, 20).until(
+                        EC.element_to_be_clickable((By.XPATH, f"//td[text()='{kpi_id}']/following-sibling::td//button[@icon='pi pi-pencil']"))
+                    )
+                    edit_button.click()
+                    logging.info(f"Clicked edit button for KPI ID: {kpi_id}")
+                    time.sleep(3)  # Wait for the edit page to load
+
+                    # Step 1: Clear and fill the Weightage field
+                    logging.info("Updating Weightage field...")
+                    weightage_input = WebDriverWait(driver, 20).until(
+                        EC.visibility_of_element_located((By.ID, 'weightage'))
+                    )
+                    weightage_input.clear()  # Clear the field
+                    weightage_input.send_keys(str(row['Weightage']))  # Fill with value from Excel
+                    time.sleep(2)
+
+                    # Step 2: Clear and fill the Target field
+                    logging.info("Updating Target field...")
+                    target_input = WebDriverWait(driver, 20).until(
+                        EC.visibility_of_element_located((By.ID, 'target'))
+                    )
+                    target_input.clear()  # Clear the field
+                    target_input.send_keys(str(row['Target']))  # Fill with value from Excel
+                    time.sleep(2)
+
+                    # Step 3: Clear and fill the Target Date field
+                    logging.info("Updating Target Date field...")
+                    target_date_input = WebDriverWait(driver, 20).until(
+                        EC.visibility_of_element_located((By.XPATH, "//input[@role='combobox' and @aria-haspopup='dialog']"))
+                    )
+                    target_date_input.clear()  # Clear the field
+                    target_date_input.send_keys(str(row['Target Date']))  # Fill with value from Excel
+                    time.sleep(2)
+
+                    # Step 4: Click the Update button
+                    logging.info("Clicking on Update button...")
+                    update_button = WebDriverWait(driver, 20).until(
+                        EC.element_to_be_clickable((By.XPATH, "//button[@icon='pi pi-check']"))
+                    )
+                    update_button.click()
+                    logging.info(f"KPI ID {kpi_id} successfully updated.")
+                    time.sleep(3)  # Wait for the update to complete
+
+                else:
+                    logging.warning(f"KPI ID {kpi_id} not found on the page.")
+                    df.at[index, 'Status'] = 'KPI ID Not Found'
+
+            except Exception as e:
+                logging.error(f"Error occurred while updating KPI ID {kpi_id}: {e}")
+                df.at[index, 'Status'] = 'Failed'
+
+        # Update Status in DataFrame for successful processing
+        df.at[index, 'Status'] = 'Success'
+
+    except Exception as e:
+        logging.error(f"An error occurred for {row['username']}: {e}")
+        df.at[index, 'Status'] = 'Failed'
+
+# Save updated Excel file with Status column
+df.to_excel(new_excel_file_path, index=False)
+logging.info("Updated Excel file saved.")
+
+# Close the driver
+driver.quit()

@@ -1,4 +1,5 @@
 import CommonFunctions as cf 
+from CommonFunctions import Click_Goal_Setting
 from CommonFunctions import login
 from CommonFunctions import click_submit_button
 import KPIADD as ak 
@@ -12,6 +13,8 @@ from EditKPIAction import EditKPIAction
 from DeleteKPIAction import DeleteKPIAction
 from EditKPIComments import EditKPIComments
 from DeleteKPIComments import DeleteKPIComments
+from EditComments import EditComments
+from DeleteComments import DeleteComments
 import time
 import os
 import logging
@@ -32,43 +35,79 @@ from selenium.common.exceptions import TimeoutException
 from CommonFunctions import logout
 driver = cf.InitializeChromeDriver()
 wait = WebDriverWait(driver, 20)
-def sequences(sheet_name, row, index, status_df):
-    df= status_df[sheet_name]
 
-print("initialise current username")
+# Dictionary to map sheet names to functions
+action_map = {
+    'AddKPI': add_kpi,
+    'EditKPI': Kpi_Edit,
+    'DeleteKPI': Kpi_Delete,
+    'AddKPIAction': Kpi_Action,
+    'AddKPIComments': Kpi_Comments,
+    'AddComments': add_comments,
+    'EditKPIAction': EditKPIAction,
+    'DeleteKPIAction': DeleteKPIAction,
+    'EditKPIComments': EditKPIComments,
+    'DeleteKPIComments': DeleteKPIComments,
+    'EditComments' : EditComments,
+    'DeleteComments' : DeleteComments
+}
+
+# Function to execute sequences dynamically
+def sequences(sheet_name, row, index, status_df):
+    df = status_df.get(sheet_name)
+    
+    if sheet_name in action_map:
+        action_map[sheet_name](row, index, wait, driver, status_df, df)
+    else:
+        print(f"No action performed for {sheet_name}")
+
+
+# Load the Excel file and initialize status_df
+excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_1.xlsx"
+status_df = pd.read_excel(excel_file_path, sheet_name=None, dtype=str)
+
+# Process each row in the 'Login' sheet
+login_df = status_df['Login']
 current_username = None
 
-for index, row in df.iterrows():
-    print("fetch the username from excel sheet")
-    username = str(row['username'])
-    print(index,'here')
+for index, row in login_df.iterrows():
+    username = row['username']
+    password = row['password']
+    employee = row['employee']
+    action = str(row['Action'])
+    
+    # Login logic
     if current_username != username:
-        print(index,'here')
-        if current_username is not None:
-            click_submit_button()
-            print("Clicked on submit button")
-            Yes_button()  # Submit KPIs before switching users
-            print("clicked on Yes ")
-            logout()  # Logout if switching to a new username
-            print("clicked on Logout")
-        login(username, str(row['password']))
-        print("Login the another Username ")
+        if current_username:
+            logout(wait)
+        login(driver, username, password, row)
         current_username = username
-    
-    add_kpi(index, row)
-    print("Adding another KPI")
+        # driver = cf.InitializeChromeDriver
+        # Navigate to Goal Setting page
+        Click_Goal_Setting(driver, wait)  
+        
+    # Call the appropriate sequence function based on the action column
+    if action and action in action_map:
+        sequences(action, row, index, status_df)
 
-    # Check if KPI ID exists and perform actions accordingly
-    KPI_Action()
-    
+# Write all sheets to a new Excel file
+timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+new_excel_file_path = f"C:\\Users\\Circular\\Desktop\\test_data_updated{timestamp}.xlsx"
+# Dictionary to store updated sheets
+updated_sheets = {}
 
-# Submit KPIs for the last user
-click_submit_button()
-print("At last if there is no username in the sheet then clicked on cancel")
+# Loop through each sheet in status_df
+for sheet_name, df in status_df.items():
+    # Condition to check for updates (Modify based on your column names)
+    if 'Status' in df.columns and df['Status'].notna().any():  # Example: If 'Status' column has non-null values
+        updated_sheets[sheet_name] = df
 
-# Save updated Excel file with Status column
-df.to_excel(new_excel_file_path, index=False)
-print("excel sheet is updated")
+# Write only the updated sheets to the new Excel file
+if updated_sheets:  # Ensure there's something to write
+    with pd.ExcelWriter(new_excel_file_path, engine='xlsxwriter') as writer:
+        for sheet_name, df in updated_sheets.items():
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
 
-# Close the driver
+print(f"Updated Excel saved at: {new_excel_file_path}")
 driver.quit()
+

@@ -7,7 +7,7 @@ import pandas as pd
 from selenium.webdriver.support.ui import WebDriverWait
 from CommonFunctions import Click_Goal_Setting
 
-def Kpi_Delete(row, index, wait, driver, status_df, df):
+def DeleteComments(row, index, wait, driver, status_df, df):
     username = row['username']
     employee = row['employee']
     if username != employee:
@@ -39,9 +39,8 @@ def Kpi_Delete(row, index, wait, driver, status_df, df):
     
     try:
         excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_1.xlsx"
-        sheet_name = 'DeleteKPI'
-        df1 = df   
-        df1 = df 
+        sheet_name = 'DeleteComments'
+        df1 = df    
         matching_kpi_rows = df1[
         (df1['Username'] == username) &
         (df1['Employee'] == employee)
@@ -53,71 +52,46 @@ def Kpi_Delete(row, index, wait, driver, status_df, df):
             print(f"No matching KPI rows found for Username: {username}, Employee: {employee}")
             return
         print(f"Found {len(matching_kpi_rows)} matching KPI rows for Username: {username}, Employee: {employee}")
+
         for idx, kpi_row in matching_kpi_rows.iterrows():
             try:
-                print("Entering Edit KPI Function")
-                kpi_id_text = None
-                if pd.notna(kpi_row['KPI ID']):  # Check if KPI ID column is not empty
-                    kpi_id_text = str(int(float(kpi_row['KPI ID']))).strip()  # Convert KPI ID to consistent format
-                    print(f"Looking for KPI ID: {kpi_id_text}")
-                rows = wait.until(
-                    EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
-                )
-                kpi_found = False   
+                # table = driver.find_element(By.ID, "pn_id_39-table")
+                # driver.execute_script("arguments[0].scrollIntoView(true);", table)
+                rows = wait.until(EC.visibility_of_element_located((By.XPATH, "//table[@id='pn_id_39-table']/tbody/tr")))
+                # driver.execute_script("arguments[0].scrollIntoView(true);", rows)
+                e_comment = str(kpi_row['e-Comment']).strip()
+                e_name = str(kpi_row['e-Name']).strip()
+                # Convert Excel date to match the table format
+                e_date_raw = kpi_row['e-Date']
+                if isinstance(e_date_raw, pd.Timestamp):  # If it's a pandas Timestamp
+                    e_date = e_date_raw.strftime('%d-%b-%Y')  # Convert to "14-Feb-2025"
+                else:  
+                    # If it's a string, try to parse and reformat
+                    e_date = datetime.strptime(str(e_date_raw), "%Y-%m-%d %H:%M:%S").strftime('%d-%b-%Y')
+                print(f"Looking for: Comment='{e_comment}', Name='{e_name}', Date='{e_date}'") 
             # Iterate through the rows to find the correct KPI ID
-                for row in rows:
-                    if kpi_id_text:
-                        kpi_column_value = row.find_element(By.XPATH, "./td[3]").text.strip()  # 3rd column in the table
-                        if kpi_column_value == kpi_id_text:
-                            print(f"KPI ID {kpi_id_text} matched. Clicking Edit button.")
-                        
-                            # Wait until the Delete button is clickable
-                            delete_button = row.find_element(By.XPATH, "./td[12]//button[contains(@icon, 'pi-trash')]")
-                            # Ensure the button is clickable
-                            wait.until(EC.element_to_be_clickable(delete_button))
-                            # Click the Delete button
-                            delete_button.click()
-                            print("Clicked on the Delete button.")
-                            
-                            # Optionally handle confirmation popup if needed
-                            confirm_button = row.find_element(By.XPATH, "//p-confirmdialog//button[2]")
-                            wait.until(EC.element_to_be_clickable(confirm_button))
-                            confirm_button.click()
-                            print("Confirmed the deletion.")
-                            kpi_found = True
-                            break
-                    else:
-                        aspect_value = row.find_element(By.XPATH, ".//td[1]").text.strip()  # 1st column (Aspect)
-                        objective_value = row.find_element(By.XPATH, ".//td[2]").text.strip()  # 2nd column (Objective)
-                        table_kpi_id_value = row.find_element(By.XPATH, ".//td[4]").text.strip()  # 4th column (KPI ID)
+                for row in rows:  # Loop through table rows
+                    try:
+                        # Extract table data
+                        table_comment = row.find_element(By.XPATH, "./td[1]").text.strip()
+                        table_name = row.find_element(By.XPATH, "./td[2]").text.strip().replace("pi-user", "").strip()
+                        table_date = row.find_element(By.XPATH, "./td[3]").text.strip()
 
-                        expected_aspect = kpi_row['EAspect']
-                        expected_objective = kpi_row['EObjective']
-                        expected_kpi_id = str(kpi_row['EKPI']).strip()
-                        if (aspect_value == expected_aspect and
-                                objective_value == expected_objective and
-                                table_kpi_id_value == expected_kpi_id):
-                            print(f"Matched by Aspect, Objective, and KPI. Clicking Edit button.")
-                            # Wait until the Delete button is clickable
-                            delete_button = row.find_element(By.XPATH, "./td[12]//button[contains(@icon, 'pi-trash')]")
-                            # Ensure the button is clickable
-                            wait.until(EC.element_to_be_clickable(delete_button))
-                            # Click the Delete button
-                            delete_button.click()
-                            print("Clicked on the Delete button.")
-                            
-                            # Optionally handle confirmation popup if needed
-                            confirm_button = row.find_element(By.XPATH, "//p-confirmdialog//button[2]")
-                            wait.until(EC.element_to_be_clickable(confirm_button))
-                            confirm_button.click()
-                            print("Confirmed the deletion.")
-                            kpi_found = True
-                            break
-                if not kpi_found :
-                        print(f"No row found with KPI ID {kpi_id_text}. Exiting.")
-                        df1.loc[index, 'status'] = 'KPI not Found in the Table.' 
-            except:
-                print(f"Error processing KPI row:")
+                        print(f"Found in table: Comment='{table_comment}', Name='{table_name}', Date='{table_date}'")
+                        # Compare with Excel values
+                        if table_comment == e_comment and table_name == e_name and table_date == e_date:
+                            print("Match found! Clicking Edit button.")
+                            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", row)
+                            time.sleep(0.5)
+                            delete_button = row.find_element(By.XPATH, ".//button[contains(@icon, 'pi-trash')]")
+                            driver.execute_script("arguments[0].click();", delete_button)  # Use JS click
+                            time.sleep(1)  # Wait for action
+                           
+                    except Exception as e:
+                        print(f" {e}")
+                    
+            except Exception as e:
+                print(f"Error processing KPI row: {e}")
                 df1.loc[idx, 'status'] = 'Error during processing'   
                 try:
                     # Wait for the toast message container to appear
@@ -164,14 +138,11 @@ def Kpi_Delete(row, index, wait, driver, status_df, df):
                     
                 except Exception as e:
                     print(f"Exception {e}")      
-        df1.loc[index, 'status'] = f"KPI ID {kpi_id_text} not found in the table."
-        print(f"KPI ID {kpi_id_text} not found in the table.")
-        return
     except Exception as e:
         print(f"Error: {e}")
-        df1.loc[index, 'status'] = f"KPI ID {kpi_id_text} not found in the table."
+        df1.loc[index, 'status'] = f" i don't know"
 
     finally :
         # Reflect changes in status_df
-        status_df['DeleteKPI'] = df
+        status_df['EditComments'] = df
         return

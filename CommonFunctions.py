@@ -74,8 +74,6 @@ def login(driver, username, password, row):
 
     login_button = WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.XPATH, "//button[text()='Login']")))
     login_button.click()
-    print("login successfully")
-    print("clicking on Goal setting")
     time.sleep(3)
 
 def logout(wait):

@@ -79,6 +79,7 @@ current_username = None
 for index, row in login_df.iterrows():
     username = row['username']
     password = row['password']
+    action = str(row['Action'])
     
     # Login logic
     if current_username != username:

@@ -65,27 +65,34 @@ def Kpi_Action(row, index, wait, driver, status_df, df):
             if pd.notna(kpi_row['KPI ID']):  # Check if KPI ID column is not empty
                 kpi_id_text = str(int(float(kpi_row['KPI ID']))).strip()  # Convert KPI ID to consistent format
                 print(f"Looking for KPI ID: {kpi_id_text}")
+            else:
+                print(f"KPI ID is empty for row {idx}. Skipping KPI lookup.")
+                df1.loc[idx, 'status'] = 'KPI ID Missing'
+                continue  # Skip this KPI and move to the next one
             rows = wait.until(
                 EC.presence_of_all_elements_located((By.XPATH, "//table[@role='table' and contains(@class, 'p-datatable-table')]/tbody/tr"))
             )
             kpi_found = False
             for row in rows:
-                third_column = row.find_element(By.XPATH, "./td[3]")
-                third_column_value = third_column.text
-                print(third_column_value)
+                try:
+                    third_column = row.find_element(By.XPATH, "./td[3]")
+                    third_column_value = third_column.text
+                    print(third_column_value)
 
-                if third_column_value == kpi_id_text:
-                    print(f"KPI ID {kpi_id_text} found")
-                    # Once the correct row is found, locate the button in the 9th column and click it
-                    action_button = row.find_element(By.XPATH, "./td[9]/button/span[1]")
-                    action_button.click()
-                    print("Clicked on Action_button")
-                    kpi_found = True
-                    break
+                    if third_column_value == kpi_id_text:
+                        print(f"KPI ID {kpi_id_text} found")
+                        # Once the correct row is found, locate the button in the 9th column and click it
+                        action_button = row.find_element(By.XPATH, "./td[9]/button/span[1]")
+                        action_button.click()
+                        print("Clicked on Action_button")
+                        kpi_found = True
+                        break
+                except Exception as e:
+                    print(f" not able to find the column {e}")
             if not kpi_found:
                 print(f"No row found with KPI ID {kpi_id_text}. Exiting.")
                 df1.loc[index, 'status'] = 'KPI not Found in the Table.'
-                return
+                continue
             try:
                 add_button = WebDriverWait(driver, 10).until(
                         EC.element_to_be_clickable((By.XPATH, "//span[normalize-space()='Add']"))

@@ -55,7 +55,7 @@ def EditComments(row, index, wait, driver, status_df, df):
 
         for idx, kpi_row in matching_kpi_rows.iterrows():
             try:
-                table = driver.find_element(By.ID, "pn_id_45-table")
+                table = driver.find_element(By.ID, "commentsTable")
                 driver.execute_script("arguments[0].scrollIntoView(true);", table)
                 rows = wait.until(EC.presence_of_all_elements_located((By.XPATH, "//table[@id='commentsTable']/tbody/tr")))
                 # driver.execute_script("arguments[0].scrollIntoView(true);", rows)

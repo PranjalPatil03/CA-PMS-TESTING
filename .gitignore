@@ -1,0 +1,10 @@
+chrome-win64/
+chromedriver-win64/
+_pycache_/
+*.png
+*.log
+venv/
+*.gitattributes
+
+
+

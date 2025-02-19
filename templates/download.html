@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Error Files</title>
+  </head>
+  <body>
+    <h1>Download Error Logs</h1>
+    <ul>
+      {% for file in error_files %}
+        <li><a href="{{ url_for('download_file', filename=file.split('\\')[-1]) }}">{{ file.split('\\')[-1] }}</a></li>
+      {% endfor %}
+    </ul>
+    <a href="{{ url_for('index') }}">Back to Upload</a>
+  </body>
+</html>

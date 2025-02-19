@@ -20,6 +20,9 @@ import math
 from selenium.common.exceptions import TimeoutException
 import KPIADD as ak 
 from openpyxl import Workbook
+import config
+
+# print()
 
 
 
@@ -49,13 +52,14 @@ def InitializeChromeDriver():
     
 
 
-def login(driver, username, password, row):
+def login(driver, username, password, row, url):
     excel_file_path = "C:\\Users\\Circular\\Desktop\\test_data_1.xlsx"
     sheet_name = 'Login'
     # Load the sheet data into a DataFrame
-    df = pd.read_excel(excel_file_path, sheet_name=sheet_name)
+    # df = pd.read_excel(excel_file_path, sheet_name=sheet_name)
 
-    url = 'https://testpms.mahyco.com/'
+    # url = 'https://testpms.mahyco.com/'
+    url = url
     driver.get(url)
     time.sleep(3)
 

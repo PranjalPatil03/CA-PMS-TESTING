@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Master Data</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            color: #333;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        form div {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        input[type="text"], select, input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #218838;
+        }
+
+        #result {
+            display: none;
+        }
+
+        #result a {
+                color: #ff0000cf;
+                text-decoration: none;
+                font-weight: 600;
+                font-size: 16px;
+            }
+
+                #result a:hover {
+                    color: #ff0000;
+                    text-decoration: underline;
+                }
+
+
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.2rem;
+            }
+
+            button {
+                padding: 10px;
+            }
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Upload Excel File</h1>
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div>
+                <label for="base_url">Base URL:</label>
+                <input type="text" id="base_url" name="base_url" required>
+            </div>
+            <div>
+                <label for="type">Type:</label>
+                <select id="type" name="type">
+                    <option value="1">Masters</option>
+                    <option value="2">Infotypes</option>
+                </select>
+            </div>
+            <div>
+                <label for="file">Excel File:</label>
+                <input type="file" id="file" name="file" accept=".xlsx" required>
+            </div>
+            <div>
+                <button type="submit" id="btnSubmit">Submit</button>
+            </div>
+        </form>
+        <div id="result"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#uploadForm').on('submit', function(e) {
+                e.preventDefault();  // Prevent the default form submission
+
+                var formData = new FormData(this);
+
+                $.ajax({
+                    url: '/upload',  // The Flask endpoint
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function(response) {
+                        // If the server returns a file link, display it
+                        if (response.error_files) {
+                            debugger;
+                            $('#result').html('<a href=/download/' + response.error_files + '><i class="fa fa-download" aria-hidden="true"> </i> Download Error File </a> ').show();
+                        } else {
+                            $('#result').html('<p>Form submission completed successfully.</p>').show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#result').html('<p>Error: ' + xhr.responseText + '</p>').show();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
